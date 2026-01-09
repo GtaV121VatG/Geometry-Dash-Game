@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Dash - v1.0</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #0a0a0a; 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        canvas { 
+            display: block; 
+            background: #111; 
+            border: 2px solid #333;
+            border-bottom: 5px solid #00ffff; 
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+        #ui { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            color: white; 
+            text-shadow: 2px 2px #000; 
+            pointer-events: none; 
+            z-index: 10;
+        }
+        .menu { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            text-align: center; 
+            color: white; 
+            background: rgba(0,0,0,0.9); 
+            padding: 40px; 
+            border: 2px solid #00ffff; 
+            border-radius: 15px; 
+            z-index: 100;
+        }
+        button { 
+            background: #00ffff; 
+            border: none; 
+            padding: 15px 30px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            margin-top: 10px;
+            font-size: 1.2rem;
+        }
+        button:hover { background: #00cccc; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <h2 id="levelName">Level 1: Genesis</h2>
+    <p>Mode: <span id="modeDisplay">CUBE</span></p>
+    <p>Progress: <span id="progress">0</span>%</p>
+</div>
+
+<div id="startMenu" class="menu">
+    <h1>NEON DASH</h1>
+    <p>Select Your Skin Color:</p>
+    <input type="color" id="skinPicker" value="#00ffff">
+    <br><br>
+    <button id="startBtn">START GAME</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const startMenu = document.getElementById('startMenu');
+
+    canvas.width = 900;
+    canvas.height = 500;
+
+    let gameState = "MENU";
+    let gameSpeed = 5;
+    let frameCount = 0;
+    let currentLevel = 1;
+
+    const player = {
+        x: 100,
+        y: 360,
+        w: 40,
+        h: 40,
+        velY: 0,
+        gravity: 0.8,
+        jumpForce: -14,
+        color: "#00ffff",
+        mode: "cube",
+        isGrounded: false,
+        rotation: 0,
+        wasJumping: false
+    };
+
+    const levels = {
+        1: { name: "Genesis" },
+        2: { name: "Sky Drift" },
+        3: { name: "Orbital" },
+        4: { name: "Pulse Jump" },
+        5: { name: "Apex" }
+    };
+
+    let obstacles = [];
+    let portals = [];
+
+    const keys = {};
+    window.addEventListener('keydown', e => { keys[e.code] = true; });
+    window.addEventListener('keyup', e => { keys[e.code] = false; });
+    window.addEventListener('mousedown', () => { keys['Space'] = true; });
+    window.addEventListener('mouseup', () => { keys['Space'] = false; });
+
+    startBtn.addEventListener('click', () => {
+        player.color = document.getElementById('skinPicker').value;
+        startMenu.style.display = 'none';
+        gameState = "PLAYING";
+        initLevel(currentLevel);
+        requestAnimationFrame(gameLoop);
+    });
+
+    function initLevel(lvl) {
+        obstacles = [];
+        portals = [];
+        player.mode = "cube";
+        player.y = 360;
+        player.velY = 0;
+        frameCount = 0;
+        
+        for (let i = 0; i < 60; i++) {
+            let xPos = 800 + (i * 350);
+            if (i % 3 === 0) obstacles.push({ x: xPos, y: 400 });
+            
+            if (i === 15) portals.push({ x: xPos - 150, type: "ship" });
+            if (i === 30) portals.push({ x: xPos - 150, type: "ufo" });
+            if (i === 45) portals.push({ x: xPos - 150, type: "ball" });
+        }
+    }
+
+    function update() {
+        if (gameState !== "PLAYING") return;
+
+        frameCount++;
+        document.getElementById('progress').innerText = Math.min(100, Math.floor((frameCount / 2500) * 100));
+
+     
+        if (player.mode === "ship") {
+            player.gravity = 0.4;
+            if (keys['Space']) player.velY -= 0.9;
+        } else if (player.mode === "ufo") {
+            player.gravity = 0.6;
+            if (keys['Space'] && !player.wasJumping) {
+                player.velY = -11;
+                player.wasJumping = true;
+            }
+        } else if (player.mode === "ball") {
+            if (keys['Space'] && player.isGrounded && !player.wasJumping) {
+                player.gravity *= -1;
+                player.isGrounded = false;
+                player.wasJumping = true;
+            }
+        } else { 
+            if (keys['Space'] && player.isGrounded) player.velY = player.jumpForce;
+        }
+
+        if (!keys['Space']) player.wasJumping = false;
+
+        player.velY += player.gravity;
+        player.y += player.velY;
+
+        if (player.y > 360) {
+            player.y = 360; player.velY = 0; player.isGrounded = true;
+        } else if (player.y < 50) {
+            player.y = 50; player.velY = 0; player.isGrounded = true;
+        } else {
+            player.isGrounded = false;
+        }
+
+    
+        obstacles.forEach(o => o.x -= gameSpeed);
+        portals.forEach(p => {
+            p.x -= gameSpeed;
+            if (Math.abs(player.x - p.x) < 40) {
+                player.mode = p.type;
+                document.getElementById('modeDisplay').innerText = p.type.toUpperCase();
+            }
+        });
+
+        
+        obstacles.forEach(o => {
+            if (player.x < o.x + 30 && player.x + player.w > o.x + 10 && 
+                player.y + player.h > o.y && player.y < o.y + 40) {
+                initLevel(currentLevel);
+            }
+        });
+
+        if (frameCount > 2500) {
+            currentLevel++;
+            if (currentLevel > 5) currentLevel = 1;
+            document.getElementById('levelName').innerText = "Level " + currentLevel + ": " + levels[currentLevel].name;
+            initLevel(currentLevel);
+        }
+    }
+
+    function draw() {
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      
+        ctx.fillStyle = "#222";
+        ctx.fillRect(0, 400, canvas.width, 100);
+        ctx.strokeStyle = player.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 400, canvas.width, 2);
+
+       
+        portals.forEach(p => {
+            ctx.fillStyle = "rgba(160, 32, 240, 0.5)";
+            ctx.fillRect(p.x, 0, 50, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.fillText(p.type.toUpperCase() + " PORTAL", p.x - 10, 30);
+        });
+
+       
+        ctx.fillStyle = "#ff4444";
+        obstacles.forEach(o => {
+            ctx.beginPath();
+            ctx.moveTo(o.x, o.y);
+            ctx.lineTo(o.x + 20, o.y - 40);
+            ctx.lineTo(o.x + 40, o.y);
+            ctx.fill();
+        });
+
+        ctx.save();
+        ctx.translate(player.x + player.w/2, player.y + player.h/2);
+        if (player.mode === "cube" && !player.isGrounded) player.rotation += 0.15;
+        else if (player.mode === "cube") player.rotation = 0;
+        ctx.rotate(player.rotation);
+        
+        ctx.fillStyle = player.color;
+        ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(-player.w/2, -player.h/2, player.w, player.h);
+        ctx.restore();
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        if (gameState === "PLAYING") requestAnimationFrame(gameLoop);
+    }
+    
+    draw();
+});
+</script>
+</body>
+</html>
