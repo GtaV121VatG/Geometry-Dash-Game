@@ -44,8 +44,8 @@ button {
 
 .play {
   background: #3a6cf4;
-  color: white;
   font-size: 28px;
+  color: white;
 }
 
 .small {
@@ -66,161 +66,202 @@ label {
 
 <body>
 
-<!-- HOME -->
 <div id="home" class="menu">
   <h1>GEOMETRY DASH</h1>
-  <button class="play" onclick="openLevels()">PLAY</button>
-  <button class="small" onclick="openCustomize()">CUSTOMIZE</button>
+  <button id="playBtn" class="play">PLAY</button>
+  <button id="customBtn" class="small">CUSTOMIZE</button>
 </div>
 
-<!-- LEVEL SELECT -->
 <div id="levels" class="menu hidden">
   <h2>Select Level</h2>
-  <button class="level-btn" onclick="startLevel(1)">Level 1</button>
-  <button class="level-btn" onclick="startLevel(2)">Level 2</button>
-  <button class="level-btn" onclick="startLevel(3)">Level 3</button>
-  <button class="level-btn" onclick="startLevel(4)">Level 4</button>
-  <button class="level-btn" onclick="startLevel(5)">Level 5</button>
-  <button class="small" onclick="goHome()">Back</button>
+  <button class="level-btn" data-level="1">Level 1</button>
+  <button class="level-btn" data-level="2">Level 2</button>
+  <button class="level-btn" data-level="3">Level 3</button>
+  <button class="level-btn" data-level="4">Level 4</button>
+  <button class="level-btn" data-level="5">Level 5</button>
+  <button id="backFromLevels" class="small">Back</button>
 </div>
 
-<!-- CUSTOMIZE -->
 <div id="customize" class="menu hidden">
   <h2>Vehicle Colors</h2>
-
   <label>Cube <input type="color" id="cubeColor" value="#3a6cf4"></label>
   <label>Ship <input type="color" id="shipColor" value="#8e44ad"></label>
   <label>UFO <input type="color" id="ufoColor" value="#2ecc71"></label>
   <label>Ball <input type="color" id="ballColor" value="#f1c40f"></label>
   <label>Spider <input type="color" id="spiderColor" value="#e74c3c"></label>
-
-  <button class="small" onclick="goHome()">Done</button>
+  <button id="backFromCustom" class="small">Done</button>
 </div>
 
 <canvas id="game" width="900" height="500"></canvas>
 
 <script>
-/* ELEMENT REFERENCES (THIS WAS THE BUG) */
-const home = document.getElementById("home");
-const levels = document.getElementById("levels");
-const customize = document.getElementById("customize");
+document.addEventListener("DOMContentLoaded", () => {
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+  const home = document.getElementById("home");
+  const levels = document.getElementById("levels");
+  const customize = document.getElementById("customize");
 
-let state = "menu";
-let level = 1;
-let frame = 0;
+  const playBtn = document.getElementById("playBtn");
+  const customBtn = document.getElementById("customBtn");
+  const backFromLevels = document.getElementById("backFromLevels");
+  const backFromCustom = document.getElementById("backFromCustom");
 
-let gravity = 0.8;
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
 
-const colors = {
-  cube: "#3a6cf4",
-  ship: "#8e44ad",
-  ufo: "#2ecc71",
-  ball: "#f1c40f",
-  spider: "#e74c3c"
-};
+  let state = "menu";
+  let level = 1;
+  let frame = 0;
+  let gravity = 0.8;
 
-const player = {
-  x: 120,
-  y: 360,
-  size: 40,
-  vy: 0,
-  mode: "cube",
-  grounded: false
-};
+  const colors = {
+    cube: "#3a6cf4",
+    ship: "#8e44ad",
+    ufo: "#2ecc71",
+    ball: "#f1c40f",
+    spider: "#e74c3c"
+  };
 
-const keys = {};
-addEventListener("keydown", e => keys[e.code] = true);
-addEventListener("keyup", e => keys[e.code] = false);
+  const player = {
+    x: 120,
+    y: 360,
+    vy: 0,
+    mode: "cube",
+    grounded: false
+  };
 
-/* MENU FUNCTIONS */
-function hideAll() {
-  home.classList.add("hidden");
-  levels.classList.add("hidden");
-  customize.classList.add("hidden");
-}
+  const keys = {};
+  addEventListener("keydown", e => keys[e.code] = true);
+  addEventListener("keyup", e => keys[e.code] = false);
 
-function openLevels() {
-  hideAll();
-  levels.classList.remove("hidden");
-}
-
-function openCustomize() {
-  hideAll();
-  customize.classList.remove("hidden");
-}
-
-function goHome() {
-  hideAll();
-  home.classList.remove("hidden");
-  state = "menu";
-}
-
-/* GAME */
-function startLevel(lvl) {
-  level = lvl;
-  frame = 0;
-  player.y = 360;
-  player.vy = 0;
-  player.mode = "cube";
-  gravity = 0.8;
-  state = "play";
-  hideAll();
-  requestAnimationFrame(loop);
-}
-
-function allowedModes() {
-  return [
-    ["cube"],
-    ["cube", "ship"],
-    ["cube", "ship", "ufo"],
-    ["cube", "ship", "ufo", "ball"],
-    ["cube", "ship", "ufo", "ball", "spider"]
-  ][level - 1];
-}
-
-function update() {
-  frame++;
-
-  if (keys["Space"]) {
-    if (player.mode === "cube" && player.grounded) player.vy = -14;
-    if (player.mode === "ship") player.vy -= 0.8;
-    if (player.mode === "ufo" && player.grounded) player.vy = -12;
-    if (player.mode === "spider" && player.grounded) player.vy = -16;
+  function hideAll() {
+    home.classList.add("hidden");
+    levels.classList.add("hidden");
+    customize.classList.add("hidden");
   }
 
-  player.vy += gravity;
-  player.y += player.vy;
+  playBtn.addEventListener("click", () => {
+    hideAll();
+    levels.classList.remove("hidden");
+  });
 
-  if (player.y >= 360) {
+  customBtn.addEventListener("click", () => {
+    hideAll();
+    customize.classList.remove("hidden");
+  });
+
+  backFromLevels.addEventListener("click", () => {
+    hideAll();
+    home.classList.remove("hidden");
+  });
+
+  backFromCustom.addEventListener("click", () => {
+    hideAll();
+    home.classList.remove("hidden");
+  });
+
+  document.querySelectorAll(".level-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      startLevel(parseInt(btn.dataset.level));
+    });
+  });
+
+  function startLevel(lvl) {
+    level = lvl;
+    frame = 0;
     player.y = 360;
     player.vy = 0;
-    player.grounded = true;
-  } else {
-    player.grounded = false;
+    player.mode = "cube";
+    gravity = 0.8;
+    state = "play";
+    hideAll();
+    requestAnimationFrame(loop);
   }
 
-  if (frame % 600 === 0) {
-    const modes = allowedModes();
-    player.mode = modes[Math.floor(Math.random() * modes.length)];
-  }
-}
-
-function drawPlayer() {
-  ctx.fillStyle = colors[player.mode];
-
-  if (player.mode === "cube") {
-    ctx.fillRect(player.x, player.y, 40, 40);
+  function allowedModes() {
+    return [
+      ["cube"],
+      ["cube","ship"],
+      ["cube","ship","ufo"],
+      ["cube","ship","ufo","ball"],
+      ["cube","ship","ufo","ball","spider"]
+    ][level - 1];
   }
 
-  if (player.mode === "ship") {
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y + 40);
-    ctx.lineTo(player.x + 40, player.y + 20);
-    ctx.lineTo(player.x, player.y);
-    ctx.fill();
+  function update() {
+    frame++;
+
+    if (keys["Space"]) {
+      if (player.mode === "cube" && player.grounded) player.vy = -14;
+      if (player.mode === "ship") player.vy -= 0.8;
+      if (player.mode === "ufo" && player.grounded) player.vy = -12;
+      if (player.mode === "spider" && player.grounded) player.vy = -16;
+    }
+
+    player.vy += gravity;
+    player.y += player.vy;
+
+    if (player.y >= 360) {
+      player.y = 360;
+      player.vy = 0;
+      player.grounded = true;
+    } else {
+      player.grounded = false;
+    }
+
+    if (frame % 600 === 0) {
+      const modes = allowedModes();
+      player.mode = modes[Math.floor(Math.random() * modes.length)];
+    }
   }
 
-  if (player.
+  function drawPlayer() {
+    ctx.fillStyle = colors[player.mode];
+
+    if (player.mode === "cube") ctx.fillRect(player.x, player.y, 40, 40);
+
+    if (player.mode === "ship") {
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y + 40);
+      ctx.lineTo(player.x + 40, player.y + 20);
+      ctx.lineTo(player.x, player.y);
+      ctx.fill();
+    }
+
+    if (player.mode === "ufo" || player.mode === "ball") {
+      ctx.beginPath();
+      ctx.arc(player.x + 20, player.y + 20, 20, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (player.mode === "spider") {
+      ctx.fillRect(player.x, player.y, 40, 40);
+    }
+  }
+
+  function draw() {
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#333";
+    ctx.fillRect(0,400,canvas.width,100);
+    drawPlayer();
+  }
+
+  function loop() {
+    if (state !== "play") return;
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  ["cube","ship","ufo","ball","spider"].forEach(type => {
+    document.getElementById(type+"Color").addEventListener("input", e => {
+      colors[type] = e.target.value;
+    });
+  });
+
+});
+</script>
+
+</body>
+</html>
