@@ -5,68 +5,26 @@
 <title>Geometry Dash Lite</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body {
-  margin: 0;
-  background: #0b0b12;
-  font-family: Arial, sans-serif;
-  overflow: hidden;
-}
-
-canvas {
-  display: block;
-  background: #1a1a2e;
-}
-
-.menu {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.hidden { display: none; }
-
-button {
-  padding: 15px 40px;
-  font-size: 22px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin: 10px;
-}
-
-.play { background: #3a6cf4; color: white; font-size: 28px; }
-.small { background: #4caf50; font-size: 18px; }
-.level-btn { background: #5c5cff; width: 200px; }
-label { margin-top: 10px; }
-
-#pauseMenu {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  z-index: 1000;
-  display: none;
-}
+body {margin:0; background:#0b0b12; font-family:Arial, sans-serif; overflow:hidden;}
+canvas {display:block; position:absolute; top:0; left:0; background:#1a1a2e; z-index:0;}
+.menu,#pauseMenu {position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; z-index:10;}
+.hidden {display:none;}
+button {padding:15px 40px; font-size:22px; border:none; border-radius:8px; cursor:pointer; margin:10px;}
+.play {background:#3a6cf4; color:white; font-size:28px;}
+.small {background:#4caf50; font-size:18px;}
+.level-btn {background:#5c5cff; width:200px;}
+label {margin-top:10px;}
+#game.playing {pointer-events:auto;}
 </style>
 </head>
 <body>
 
-<!-- HOME MENU -->
 <div id="home" class="menu">
   <h1>GEOMETRY DASH</h1>
   <button id="playBtn" class="play">PLAY</button>
   <button id="customBtn" class="small">CUSTOMIZE</button>
 </div>
 
-<!-- LEVEL SELECT -->
 <div id="levels" class="menu hidden">
   <h2>Select Level</h2>
   <button class="level-btn" data-level="1">Level 1</button>
@@ -77,7 +35,6 @@ label { margin-top: 10px; }
   <button id="backFromLevels" class="small">Back</button>
 </div>
 
-<!-- CUSTOMIZE COLORS -->
 <div id="customize" class="menu hidden">
   <h2>Vehicle Colors</h2>
   <label>Cube <input type="color" id="cubeColor" value="#3a6cf4"></label>
@@ -88,8 +45,7 @@ label { margin-top: 10px; }
   <button id="backFromCustom" class="small">Done</button>
 </div>
 
-<!-- PAUSE MENU -->
-<div id="pauseMenu">
+<div id="pauseMenu" class="hidden">
   <h1>PAUSED</h1>
   <button id="resumeBtn" class="play">Resume</button>
   <button id="exitBtn" class="small">Exit to Menu</button>
@@ -99,194 +55,88 @@ label { margin-top: 10px; }
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // CANVAS
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    floorY = canvas.height - 140;
+  let floorY, scrollX=0;
+
+  function resizeCanvas(){
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
+    floorY=canvas.height-140;
   }
-  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("resize",resizeCanvas);
   resizeCanvas();
 
-  // MENU ELEMENTS
-  const home = document.getElementById("home");
-  const levels = document.getElementById("levels");
-  const customize = document.getElementById("customize");
-  const playBtn = document.getElementById("playBtn");
-  const customBtn = document.getElementById("customBtn");
-  const backFromLevels = document.getElementById("backFromLevels");
-  const backFromCustom = document.getElementById("backFromCustom");
-  const pauseMenu = document.getElementById("pauseMenu");
-  const resumeBtn = document.getElementById("resumeBtn");
-  const exitBtn = document.getElementById("exitBtn");
+  const home=document.getElementById("home");
+  const levels=document.getElementById("levels");
+  const customize=document.getElementById("customize");
+  const playBtn=document.getElementById("playBtn");
+  const customBtn=document.getElementById("customBtn");
+  const backFromLevels=document.getElementById("backFromLevels");
+  const backFromCustom=document.getElementById("backFromCustom");
+  const pauseMenu=document.getElementById("pauseMenu");
+  const resumeBtn=document.getElementById("resumeBtn");
+  const exitBtn=document.getElementById("exitBtn");
 
-  let state = "menu";  // menu / play / paused
-  let level = 1;
-  let frame = 0;
-  let gravity = 0.8;
-  let floorY = canvas.height - 140;
-  let scrollX = 0;
+  let state="menu", level=1, frame=0, gravity=0.8;
 
-  // COLORS
-  const colors = {
-    cube: "#3a6cf4",
-    ship: "#8e44ad",
-    ufo: "#2ecc71",
-    ball: "#f1c40f",
-    spider: "#e74c3c"
-  };
+  const colors={cube:"#3a6cf4",ship:"#8e44ad",ufo:"#2ecc71",ball:"#f1c40f",spider:"#e74c3c"};
 
-  // PLAYER
-  const player = { x: 120, y: floorY, vy: 0, mode: "cube", grounded: true };
+  const player={x:120,y:floorY,vy:0,mode:"cube",grounded:true};
 
-  // PARTICLES
-  const particles = [];
+  const particles=[];
 
-  const keys = {};
-  addEventListener("keydown", e => {
-    keys[e.code] = true;
-    if(e.code === "Escape" && state==="play") { state="paused"; pauseMenu.style.display="flex"; }
-  });
-  addEventListener("keyup", e => keys[e.code] = false);
+  const keys={};
+  addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="Escape"&&state==="play"){state="paused";pauseMenu.style.display="flex";}});
+  addEventListener("keyup",e=>keys[e.code]=false);
 
-  // MENU FUNCTIONS
-  function hideAll() { home.classList.add("hidden"); levels.classList.add("hidden"); customize.classList.add("hidden"); pauseMenu.style.display="none"; }
+  function hideAll(){home.classList.add("hidden");levels.classList.add("hidden");customize.classList.add("hidden");pauseMenu.style.display="none";}
 
-  playBtn.addEventListener("click", () => { hideAll(); levels.classList.remove("hidden"); });
-  customBtn.addEventListener("click", () => { hideAll(); customize.classList.remove("hidden"); });
-  backFromLevels.addEventListener("click", () => { hideAll(); home.classList.remove("hidden"); });
-  backFromCustom.addEventListener("click", () => { hideAll(); home.classList.remove("hidden"); });
+  playBtn.addEventListener("click",()=>{hideAll();levels.classList.remove("hidden");});
+  customBtn.addEventListener("click",()=>{hideAll();customize.classList.remove("hidden");});
+  backFromLevels.addEventListener("click",()=>{hideAll();home.classList.remove("hidden");});
+  backFromCustom.addEventListener("click",()=>{hideAll();home.classList.remove("hidden");});
 
-  document.querySelectorAll(".level-btn").forEach(btn => {
-    btn.addEventListener("click", () => { startLevel(parseInt(btn.dataset.level)); });
-  });
+  document.querySelectorAll(".level-btn").forEach(btn=>{btn.addEventListener("click",()=>{startLevel(parseInt(btn.dataset.level));});});
+  resumeBtn.addEventListener("click",()=>{state="play";pauseMenu.style.display="none";requestAnimationFrame(loop);});
+  exitBtn.addEventListener("click",()=>{state="menu";hideAll();home.classList.remove("hidden");canvas.classList.remove("playing");});
 
-  resumeBtn.addEventListener("click", () => { state="play"; pauseMenu.style.display="none"; requestAnimationFrame(loop); });
-  exitBtn.addEventListener("click", () => { state="menu"; hideAll(); home.classList.remove("hidden"); });
-
-  function startLevel(lvl) {
-    level = lvl;
-    frame = 0;
-    player.y = floorY;
-    player.vy = 0;
-    player.mode = "cube";
-    scrollX = 0;
-    state = "play";
-    hideAll();
-    requestAnimationFrame(loop);
+  function startLevel(lvl){
+    level=lvl; frame=0; player.y=floorY; player.vy=0; player.mode="cube"; scrollX=0; state="play"; hideAll(); canvas.classList.add("playing"); requestAnimationFrame(loop);
   }
 
-  function allowedModes() {
-    return [
-      ["cube"],
-      ["cube","ship"],
-      ["cube","ship","ufo"],
-      ["cube","ship","ufo","ball"],
-      ["cube","ship","ufo","ball","spider"]
-    ][level - 1];
-  }
+  function allowedModes(){return [["cube"],["cube","ship"],["cube","ship","ufo"],["cube","ship","ufo","ball"],["cube","ship","ufo","ball","spider"]][level-1];}
 
-  function update() {
-    frame++;
-    scrollX += 5; // move right automatically
-
-    // Jump input
-    if ((keys["Space"] || keys["ArrowUp"])) {
-      if (player.mode==="cube" && player.grounded) player.vy=-14;
-      if (player.mode==="ship") player.vy-=0.8;
-      if (player.mode==="ufo" && player.grounded) player.vy=-12;
-      if (player.mode==="spider" && player.grounded) player.vy=-16;
+  function update(){
+    frame++; scrollX+=5;
+    if(keys["Space"]||keys["ArrowUp"]){
+      if(player.mode==="cube"&&player.grounded)player.vy=-14;
+      if(player.mode==="ship")player.vy-=0.8;
+      if(player.mode==="ufo"&&player.grounded)player.vy=-12;
+      if(player.mode==="spider"&&player.grounded)player.vy=-16;
     }
-
-    player.vy += gravity;
-    player.y += player.vy;
-
-    if (player.y >= floorY) {
-      player.y = floorY;
-      player.vy = 0;
-      player.grounded = true;
-    } else { player.grounded = false; }
-
-    // Random mode switching
-    if (frame % 600 === 0) {
-      const modes = allowedModes();
-      player.mode = modes[Math.floor(Math.random() * modes.length)];
-    }
-
-    // Generate particles while moving
-    generateParticles(player.x+20, player.y+40, 2);
-    
-    // Update particles
-    for (let i=particles.length-1; i>=0; i--) {
-      const p = particles[i];
-      p.x -= 5; // move with scrolling
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.2;
-      p.alpha -= 0.03;
-      if (p.alpha <= 0) particles.splice(i,1);
-    }
+    player.vy+=gravity; player.y+=player.vy;
+    if(player.y>=floorY){player.y=floorY;player.vy=0;player.grounded=true;}else player.grounded=false;
+    if(frame%600===0){const modes=allowedModes();player.mode=modes[Math.floor(Math.random()*modes.length)];}
+    generateParticles(player.x+20,player.y+40,3);
+    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x-=5;p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.alpha-=0.03;if(p.alpha<=0)particles.splice(i,1);}
   }
 
-  function generateParticles(x,y,count=5) {
-    for(let i=0;i<count;i++){
-      particles.push({
-        x: x,
-        y: y,
-        vx: (Math.random()-0.5)*2,
-        vy: -Math.random()*2,
-        alpha: 1,
-        size: 4
-      });
-    }
-  }
+  function generateParticles(x,y,count=5){for(let i=0;i<count;i++){particles.push({x:x,y:y,vx:(Math.random()-0.5)*2,vy:-Math.random()*2,alpha:1,size:4});}}
 
-  function drawPlayer() {
-    ctx.fillStyle = colors[player.mode];
-    const x = player.x, y = player.y;
+  function drawPlayer(){ctx.fillStyle=colors[player.mode];const x=player.x,y=player.y;if(player.mode==="cube")ctx.fillRect(x,y,40,40);if(player.mode==="ship"){ctx.beginPath();ctx.moveTo(x,y+40);ctx.lineTo(x+40,y+20);ctx.lineTo(x,y);ctx.fill();}if(player.mode==="ufo"||player.mode==="ball"){ctx.beginPath();ctx.arc(x+20,y+20,20,0,Math.PI*2);ctx.fill();}if(player.mode==="spider")ctx.fillRect(x,y,40,40);}
 
-    if(player.mode==="cube") ctx.fillRect(x,y,40,40);
-    if(player.mode==="ship") { ctx.beginPath(); ctx.moveTo(x,y+40); ctx.lineTo(x+40,y+20); ctx.lineTo(x,y); ctx.fill(); }
-    if(player.mode==="ufo"||player.mode==="ball") { ctx.beginPath(); ctx.arc(x+20,y+20,20,0,Math.PI*2); ctx.fill(); }
-    if(player.mode==="spider") ctx.fillRect(x,y,40,40);
-  }
+  function drawParticles(){particles.forEach(p=>{ctx.globalAlpha=p.alpha;ctx.fillStyle="#ccc";ctx.fillRect(p.x,p.y,p.size,p.size);ctx.globalAlpha=1;});}
 
-  function drawParticles() {
-    particles.forEach(p => {
-      ctx.globalAlpha = p.alpha;
-      ctx.fillStyle = "#ccc";
-      ctx.fillRect(p.x, p.y, p.size, p.size);
-      ctx.globalAlpha = 1;
-    });
-  }
+  function drawFloor(){ctx.fillStyle="#333";ctx.fillRect(0,floorY,canvas.width,140);}
 
-  function drawFloor() {
-    ctx.fillStyle="#333";
-    ctx.fillRect(0,floorY,canvas.width,140);
-  }
+  function draw(){ctx.fillStyle="#1a1a2e";ctx.fillRect(0,0,canvas.width,canvas.height);drawFloor();drawPlayer();drawParticles();}
 
-  function draw() {
-    ctx.fillStyle="#1a1a2e"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    drawFloor();
-    drawPlayer();
-    drawParticles();
-  }
+  function loop(){if(state!=="play")return;update();draw();requestAnimationFrame(loop);}
 
-  function loop() {
-    if(state!=="play") return;
-    update();
-    draw();
-    requestAnimationFrame(loop);
-  }
-
-  // COLOR PICKERS
-  ["cube","ship","ufo","ball","spider"].forEach(type => {
-    document.getElementById(type+"Color").addEventListener("input", e => { colors[type] = e.target.value; });
-  });
-
+  ["cube","ship","ufo","ball","spider"].forEach(type=>{document.getElementById(type+"Color").addEventListener("input",e=>{colors[type]=e.target.value;});});
 });
 </script>
+
 </body>
 </html>
