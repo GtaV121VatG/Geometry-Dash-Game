@@ -100,6 +100,11 @@ label {
 <canvas id="game" width="900" height="500"></canvas>
 
 <script>
+/* ELEMENT REFERENCES (THIS WAS THE BUG) */
+const home = document.getElementById("home");
+const levels = document.getElementById("levels");
+const customize = document.getElementById("customize");
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -107,7 +112,7 @@ let state = "menu";
 let level = 1;
 let frame = 0;
 
-const gravity = 0.8;
+let gravity = 0.8;
 
 const colors = {
   cube: "#3a6cf4",
@@ -130,6 +135,13 @@ const keys = {};
 addEventListener("keydown", e => keys[e.code] = true);
 addEventListener("keyup", e => keys[e.code] = false);
 
+/* MENU FUNCTIONS */
+function hideAll() {
+  home.classList.add("hidden");
+  levels.classList.add("hidden");
+  customize.classList.add("hidden");
+}
+
 function openLevels() {
   hideAll();
   levels.classList.remove("hidden");
@@ -146,18 +158,14 @@ function goHome() {
   state = "menu";
 }
 
-function hideAll() {
-  home.classList.add("hidden");
-  levels.classList.add("hidden");
-  customize.classList.add("hidden");
-}
-
+/* GAME */
 function startLevel(lvl) {
   level = lvl;
   frame = 0;
   player.y = 360;
   player.vy = 0;
   player.mode = "cube";
+  gravity = 0.8;
   state = "play";
   hideAll();
   requestAnimationFrame(loop);
@@ -180,7 +188,6 @@ function update() {
     if (player.mode === "cube" && player.grounded) player.vy = -14;
     if (player.mode === "ship") player.vy -= 0.8;
     if (player.mode === "ufo" && player.grounded) player.vy = -12;
-    if (player.mode === "ball" && player.grounded) gravity *= -1;
     if (player.mode === "spider" && player.grounded) player.vy = -16;
   }
 
@@ -207,6 +214,7 @@ function drawPlayer() {
   if (player.mode === "cube") {
     ctx.fillRect(player.x, player.y, 40, 40);
   }
+
   if (player.mode === "ship") {
     ctx.beginPath();
     ctx.moveTo(player.x, player.y + 40);
@@ -214,20 +222,5 @@ function drawPlayer() {
     ctx.lineTo(player.x, player.y);
     ctx.fill();
   }
-  if (player.mode === "ufo") {
-    ctx.beginPath();
-    ctx.arc(player.x + 20, player.y + 20, 20, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  if (player.mode === "ball") {
-    ctx.beginPath();
-    ctx.arc(player.x + 20, player.y + 20, 20, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  if (player.mode === "spider") {
-    ctx.fillRect(player.x, player.y, 40, 40);
-    ctx.strokeStyle = colors[player.mode];
-    for (let i = 0; i < 4; i++) {
-      ctx.beginPath();
-      ctx.moveTo(player.x, player.y + 10 * i);
-      ctx.lineT
+
+  if (player.
