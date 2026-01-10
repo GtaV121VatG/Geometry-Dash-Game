@@ -14,7 +14,6 @@ body {
 
 canvas {
   display: block;
-  margin: auto;
   background: #1a1a2e;
 }
 
@@ -96,10 +95,21 @@ label { margin-top: 10px; }
   <button id="exitBtn" class="small">Exit to Menu</button>
 </div>
 
-<canvas id="game" width="900" height="500"></canvas>
+<canvas id="game"></canvas>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+  // CANVAS
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    floorY = canvas.height - 140;
+  }
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
   // MENU ELEMENTS
   const home = document.getElementById("home");
   const levels = document.getElementById("levels");
@@ -108,8 +118,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const customBtn = document.getElementById("customBtn");
   const backFromLevels = document.getElementById("backFromLevels");
   const backFromCustom = document.getElementById("backFromCustom");
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
   const pauseMenu = document.getElementById("pauseMenu");
   const resumeBtn = document.getElementById("resumeBtn");
   const exitBtn = document.getElementById("exitBtn");
@@ -118,9 +126,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let level = 1;
   let frame = 0;
   let gravity = 0.8;
-  let floorY = 360;
+  let floorY = canvas.height - 140;
+  let scrollX = 0;
 
-  // VEHICLE COLORS
+  // COLORS
   const colors = {
     cube: "#3a6cf4",
     ship: "#8e44ad",
@@ -129,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
     spider: "#e74c3c"
   };
 
-  // PLAYER DATA
+  // PLAYER
   const player = { x: 120, y: floorY, vy: 0, mode: "cube", grounded: true };
 
   // PARTICLES
@@ -138,8 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const keys = {};
   addEventListener("keydown", e => {
     keys[e.code] = true;
-    // Pause toggle
-    if (e.code === "Escape" && state==="play") state="paused", pauseMenu.style.display="flex";
+    if(e.code === "Escape" && state==="play") { state="paused"; pauseMenu.style.display="flex"; }
   });
   addEventListener("keyup", e => keys[e.code] = false);
 
@@ -164,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
     player.y = floorY;
     player.vy = 0;
     player.mode = "cube";
-    gravity = 0.8;
+    scrollX = 0;
     state = "play";
     hideAll();
     requestAnimationFrame(loop);
@@ -182,8 +190,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function update() {
     frame++;
+    scrollX += 5; // move right automatically
 
-    // Jump input (space or up)
+    // Jump input
     if ((keys["Space"] || keys["ArrowUp"])) {
       if (player.mode==="cube" && player.grounded) player.vy=-14;
       if (player.mode==="ship") player.vy-=0.8;
@@ -195,21 +204,24 @@ document.addEventListener("DOMContentLoaded", () => {
     player.y += player.vy;
 
     if (player.y >= floorY) {
-      if (!player.grounded) generateParticles(player.x+20, floorY+40);
       player.y = floorY;
       player.vy = 0;
       player.grounded = true;
     } else { player.grounded = false; }
 
-    // Random vehicle mode switching every few seconds
+    // Random mode switching
     if (frame % 600 === 0) {
       const modes = allowedModes();
       player.mode = modes[Math.floor(Math.random() * modes.length)];
     }
 
+    // Generate particles while moving
+    generateParticles(player.x+20, player.y+40, 2);
+    
     // Update particles
     for (let i=particles.length-1; i>=0; i--) {
       const p = particles[i];
+      p.x -= 5; // move with scrolling
       p.x += p.vx;
       p.y += p.vy;
       p.vy += 0.2;
@@ -218,8 +230,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function generateParticles(x,y) {
-    for (let i=0;i<5;i++) {
+  function generateParticles(x,y,count=5) {
+    for(let i=0;i<count;i++){
       particles.push({
         x: x,
         y: y,
@@ -233,17 +245,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function drawPlayer() {
     ctx.fillStyle = colors[player.mode];
-    const x=player.x, y=player.y;
+    const x = player.x, y = player.y;
 
-    if (player.mode==="cube") ctx.fillRect(x,y,40,40);
-    if (player.mode==="ship") {
-      ctx.beginPath();
-      ctx.moveTo(x,y+40); ctx.lineTo(x+40,y+20); ctx.lineTo(x,y); ctx.fill();
-    }
-    if (player.mode==="ufo" || player.mode==="ball") {
-      ctx.beginPath(); ctx.arc(x+20,y+20,20,0,Math.PI*2); ctx.fill();
-    }
-    if (player.mode==="spider") ctx.fillRect(x,y,40,40);
+    if(player.mode==="cube") ctx.fillRect(x,y,40,40);
+    if(player.mode==="ship") { ctx.beginPath(); ctx.moveTo(x,y+40); ctx.lineTo(x+40,y+20); ctx.lineTo(x,y); ctx.fill(); }
+    if(player.mode==="ufo"||player.mode==="ball") { ctx.beginPath(); ctx.arc(x+20,y+20,20,0,Math.PI*2); ctx.fill(); }
+    if(player.mode==="spider") ctx.fillRect(x,y,40,40);
   }
 
   function drawParticles() {
@@ -255,19 +262,30 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function drawFloor() {
+    ctx.fillStyle="#333";
+    ctx.fillRect(0,floorY,canvas.width,140);
+  }
+
   function draw() {
     ctx.fillStyle="#1a1a2e"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle="#333"; ctx.fillRect(0,floorY,canvas.width,140);
+    drawFloor();
     drawPlayer();
     drawParticles();
   }
 
-  function loop() { if(state!=="play") return; update(); draw(); requestAnimationFrame(loop); }
+  function loop() {
+    if(state!=="play") return;
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
 
   // COLOR PICKERS
   ["cube","ship","ufo","ball","spider"].forEach(type => {
     document.getElementById(type+"Color").addEventListener("input", e => { colors[type] = e.target.value; });
   });
+
 });
 </script>
 </body>
