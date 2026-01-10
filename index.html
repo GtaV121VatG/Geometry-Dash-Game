@@ -15,9 +15,13 @@ button {padding:15px 40px; font-size:22px; border:none; border-radius:8px; curso
 .level-btn {background:#5c5cff; width:200px;}
 label {margin-top:10px;}
 #game.playing {pointer-events:auto;}
+#progressBar {position:absolute; top:0; left:0; height:20px; background:#555; width:100%; z-index:11;}
+#progressFill {height:20px; background:#3a6cf4; width:0%;}
 </style>
 </head>
 <body>
+
+<div id="progressBar"><div id="progressFill"></div></div>
 
 <div id="home" class="menu">
   <h1>GEOMETRY DASH</h1>
@@ -55,15 +59,12 @@ label {margin-top:10px;}
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-  let floorY, scrollX=0;
+  const canvas=document.getElementById("game");
+  const ctx=canvas.getContext("2d");
+  const progressFill=document.getElementById("progressFill");
+  let floorY,scrollX=0;
 
-  function resizeCanvas(){
-    canvas.width=window.innerWidth;
-    canvas.height=window.innerHeight;
-    floorY=canvas.height-140;
-  }
+  function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;floorY=canvas.height-140;}
   window.addEventListener("resize",resizeCanvas);
   resizeCanvas();
 
@@ -78,14 +79,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const resumeBtn=document.getElementById("resumeBtn");
   const exitBtn=document.getElementById("exitBtn");
 
-  let state="menu", level=1, frame=0, gravity=0.8;
+  let state="menu",level=1,frame=0,gravity=0.8;
 
   const colors={cube:"#3a6cf4",ship:"#8e44ad",ufo:"#2ecc71",ball:"#f1c40f",spider:"#e74c3c"};
 
   const player={x:120,y:floorY,vy:0,mode:"cube",grounded:true};
 
   const particles=[];
-
   const keys={};
   addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="Escape"&&state==="play"){state="paused";pauseMenu.style.display="flex";}});
   addEventListener("keyup",e=>keys[e.code]=false);
@@ -101,8 +101,22 @@ document.addEventListener("DOMContentLoaded", () => {
   resumeBtn.addEventListener("click",()=>{state="play";pauseMenu.style.display="none";requestAnimationFrame(loop);});
   exitBtn.addEventListener("click",()=>{state="menu";hideAll();home.classList.remove("hidden");canvas.classList.remove("playing");});
 
+  let obstacles=[];
+  let portals=[];
+
   function startLevel(lvl){
-    level=lvl; frame=0; player.y=floorY; player.vy=0; player.mode="cube"; scrollX=0; state="play"; hideAll(); canvas.classList.add("playing"); requestAnimationFrame(loop);
+    level=lvl; frame=0; player.y=floorY; player.vy=0; player.mode="cube"; scrollX=0; state="play";
+    hideAll(); canvas.classList.add("playing");
+    obstacles=[]; portals=[];
+    let distance=200;
+    for(let i=0;i<50;i++){
+      if(i%5===0)obstacles.push({x:900+i*distance,y:floorY-40});
+      if(i===10&&level>=2)portals.push({x:900+i*distance,type:"ship"});
+      if(i===20&&level>=3)portals.push({x:900+i*distance,type:"ufo"});
+      if(i===30&&level>=4)portals.push({x:900+i*distance,type:"ball"});
+      if(i===40&&level>=5)portals.push({x:900+i*distance,type:"spider"});
+    }
+    requestAnimationFrame(loop);
   }
 
   function allowedModes(){return [["cube"],["cube","ship"],["cube","ship","ufo"],["cube","ship","ufo","ball"],["cube","ship","ufo","ball","spider"]][level-1];}
@@ -117,9 +131,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     player.vy+=gravity; player.y+=player.vy;
     if(player.y>=floorY){player.y=floorY;player.vy=0;player.grounded=true;}else player.grounded=false;
-    if(frame%600===0){const modes=allowedModes();player.mode=modes[Math.floor(Math.random()*modes.length)];}
-    generateParticles(player.x+20,player.y+40,3);
+    generateParticles(player.x+20,player.y+40,2);
     for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x-=5;p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.alpha-=0.03;if(p.alpha<=0)particles.splice(i,1);}
+
+    obstacles.forEach(o=>{o.x-=5;if(player.x<o.x+30&&player.x+40>o.x&&player.y+40>o.y){startLevel(level);}});
+
+    portals.forEach(p=>{p.x-=5;if(Math.abs(player.x-p.x)<40){player.mode=p.type;}});
+
+    let totalWidth=obstacles[obstacles.length-1]?obstacles[obstacles.length-1].x:1000;
+    let percent=Math.min(100,Math.floor((scrollX/totalWidth)*100));
+    progressFill.style.width=percent+"%";
   }
 
   function generateParticles(x,y,count=5){for(let i=0;i<count;i++){particles.push({x:x,y:y,vx:(Math.random()-0.5)*2,vy:-Math.random()*2,alpha:1,size:4});}}
@@ -130,13 +151,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function drawFloor(){ctx.fillStyle="#333";ctx.fillRect(0,floorY,canvas.width,140);}
 
-  function draw(){ctx.fillStyle="#1a1a2e";ctx.fillRect(0,0,canvas.width,canvas.height);drawFloor();drawPlayer();drawParticles();}
+  function drawObstacles(){obstacles.forEach(o=>{ctx.fillStyle="#ff4444";ctx.beginPath();ctx.moveTo(o.x,o.y+40);ctx.lineTo(o.x+20,o.y);ctx.lineTo(o.x+40,o.y+40);ctx.fill();});}
+
+  function drawPortals(){portals.forEach(p=>{ctx.fillStyle="rgba(160,32,240,0.5)";ctx.fillRect(p.x,0,50,canvas.height);ctx.fillStyle="white";ctx.fillText(p.type.toUpperCase()+" PORTAL",p.x-10,30);});}
+
+  function draw(){ctx.fillStyle="#1a1a2e";ctx.fillRect(0,0,canvas.width,canvas.height);drawFloor();drawObstacles();drawPortals();drawPlayer();drawParticles();}
 
   function loop(){if(state!=="play")return;update();draw();requestAnimationFrame(loop);}
 
   ["cube","ship","ufo","ball","spider"].forEach(type=>{document.getElementById(type+"Color").addEventListener("input",e=>{colors[type]=e.target.value;});});
 });
 </script>
-
 </body>
 </html>
