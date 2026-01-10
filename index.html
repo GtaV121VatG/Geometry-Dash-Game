@@ -43,9 +43,21 @@ button {
 .small { background: #4caf50; font-size: 18px; }
 .level-btn { background: #5c5cff; width: 200px; }
 label { margin-top: 10px; }
+
+#pauseMenu {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  z-index: 1000;
+  display: none;
+}
 </style>
 </head>
-
 <body>
 
 <!-- HOME MENU -->
@@ -77,6 +89,13 @@ label { margin-top: 10px; }
   <button id="backFromCustom" class="small">Done</button>
 </div>
 
+<!-- PAUSE MENU -->
+<div id="pauseMenu">
+  <h1>PAUSED</h1>
+  <button id="resumeBtn" class="play">Resume</button>
+  <button id="exitBtn" class="small">Exit to Menu</button>
+</div>
+
 <canvas id="game" width="900" height="500"></canvas>
 
 <script>
@@ -91,11 +110,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const backFromCustom = document.getElementById("backFromCustom");
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
+  const pauseMenu = document.getElementById("pauseMenu");
+  const resumeBtn = document.getElementById("resumeBtn");
+  const exitBtn = document.getElementById("exitBtn");
 
-  let state = "menu";  // menu / play
+  let state = "menu";  // menu / play / paused
   let level = 1;
   let frame = 0;
   let gravity = 0.8;
+  let floorY = 360;
 
   // VEHICLE COLORS
   const colors = {
@@ -107,14 +130,21 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // PLAYER DATA
-  const player = { x: 120, y: 360, vy: 0, mode: "cube", grounded: false };
+  const player = { x: 120, y: floorY, vy: 0, mode: "cube", grounded: true };
+
+  // PARTICLES
+  const particles = [];
 
   const keys = {};
-  addEventListener("keydown", e => keys[e.code] = true);
+  addEventListener("keydown", e => {
+    keys[e.code] = true;
+    // Pause toggle
+    if (e.code === "Escape" && state==="play") state="paused", pauseMenu.style.display="flex";
+  });
   addEventListener("keyup", e => keys[e.code] = false);
 
   // MENU FUNCTIONS
-  function hideAll() { home.classList.add("hidden"); levels.classList.add("hidden"); customize.classList.add("hidden"); }
+  function hideAll() { home.classList.add("hidden"); levels.classList.add("hidden"); customize.classList.add("hidden"); pauseMenu.style.display="none"; }
 
   playBtn.addEventListener("click", () => { hideAll(); levels.classList.remove("hidden"); });
   customBtn.addEventListener("click", () => { hideAll(); customize.classList.remove("hidden"); });
@@ -125,10 +155,13 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => { startLevel(parseInt(btn.dataset.level)); });
   });
 
+  resumeBtn.addEventListener("click", () => { state="play"; pauseMenu.style.display="none"; requestAnimationFrame(loop); });
+  exitBtn.addEventListener("click", () => { state="menu"; hideAll(); home.classList.remove("hidden"); });
+
   function startLevel(lvl) {
     level = lvl;
     frame = 0;
-    player.y = 360;
+    player.y = floorY;
     player.vy = 0;
     player.mode = "cube";
     gravity = 0.8;
@@ -149,20 +182,52 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function update() {
     frame++;
-    if (keys["Space"]) {
+
+    // Jump input (space or up)
+    if ((keys["Space"] || keys["ArrowUp"])) {
       if (player.mode==="cube" && player.grounded) player.vy=-14;
       if (player.mode==="ship") player.vy-=0.8;
       if (player.mode==="ufo" && player.grounded) player.vy=-12;
       if (player.mode==="spider" && player.grounded) player.vy=-16;
     }
+
     player.vy += gravity;
     player.y += player.vy;
-    player.grounded = player.y >= 360;
-    if (player.grounded) player.y=360, player.vy=0;
 
+    if (player.y >= floorY) {
+      if (!player.grounded) generateParticles(player.x+20, floorY+40);
+      player.y = floorY;
+      player.vy = 0;
+      player.grounded = true;
+    } else { player.grounded = false; }
+
+    // Random vehicle mode switching every few seconds
     if (frame % 600 === 0) {
       const modes = allowedModes();
       player.mode = modes[Math.floor(Math.random() * modes.length)];
+    }
+
+    // Update particles
+    for (let i=particles.length-1; i>=0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2;
+      p.alpha -= 0.03;
+      if (p.alpha <= 0) particles.splice(i,1);
+    }
+  }
+
+  function generateParticles(x,y) {
+    for (let i=0;i<5;i++) {
+      particles.push({
+        x: x,
+        y: y,
+        vx: (Math.random()-0.5)*2,
+        vy: -Math.random()*2,
+        alpha: 1,
+        size: 4
+      });
     }
   }
 
@@ -181,10 +246,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (player.mode==="spider") ctx.fillRect(x,y,40,40);
   }
 
+  function drawParticles() {
+    particles.forEach(p => {
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = "#ccc";
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+      ctx.globalAlpha = 1;
+    });
+  }
+
   function draw() {
     ctx.fillStyle="#1a1a2e"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle="#333"; ctx.fillRect(0,400,canvas.width,100);
+    ctx.fillStyle="#333"; ctx.fillRect(0,floorY,canvas.width,140);
     drawPlayer();
+    drawParticles();
   }
 
   function loop() { if(state!=="play") return; update(); draw(); requestAnimationFrame(loop); }
@@ -193,9 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ["cube","ship","ufo","ball","spider"].forEach(type => {
     document.getElementById(type+"Color").addEventListener("input", e => { colors[type] = e.target.value; });
   });
-
 });
 </script>
-
 </body>
 </html>
