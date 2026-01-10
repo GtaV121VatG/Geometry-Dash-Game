@@ -2,16 +2,17 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>TEST</title>
+<title>Test</title>
 </head>
 <body>
 
-<button id="testBtn">CLICK ME</button>
+<h1>If you see this, HTML is running</h1>
+<button id="btn">CLICK ME</button>
 
 <script>
-document.getElementById("testBtn").addEventListener("click", () => {
-  alert("JavaScript is working");
-});
+document.getElementById("btn").onclick = () => {
+  alert("Buttons work on GitHub Pages");
+};
 </script>
 
 </body>
