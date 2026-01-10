@@ -1,20 +1,201 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Test</title>
+<title>Geometry Dash Lite</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  margin: 0;
+  background: #0b0b12;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  margin: auto;
+  background: #1a1a2e;
+}
+
+.menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.hidden { display: none; }
+
+button {
+  padding: 15px 40px;
+  font-size: 22px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin: 10px;
+}
+
+.play { background: #3a6cf4; color: white; font-size: 28px; }
+.small { background: #4caf50; font-size: 18px; }
+.level-btn { background: #5c5cff; width: 200px; }
+label { margin-top: 10px; }
+</style>
 </head>
+
 <body>
 
-<h1>If you see this, HTML is running</h1>
-<button id="btn">CLICK ME</button>
+<!-- HOME MENU -->
+<div id="home" class="menu">
+  <h1>GEOMETRY DASH</h1>
+  <button id="playBtn" class="play">PLAY</button>
+  <button id="customBtn" class="small">CUSTOMIZE</button>
+</div>
+
+<!-- LEVEL SELECT -->
+<div id="levels" class="menu hidden">
+  <h2>Select Level</h2>
+  <button class="level-btn" data-level="1">Level 1</button>
+  <button class="level-btn" data-level="2">Level 2</button>
+  <button class="level-btn" data-level="3">Level 3</button>
+  <button class="level-btn" data-level="4">Level 4</button>
+  <button class="level-btn" data-level="5">Level 5</button>
+  <button id="backFromLevels" class="small">Back</button>
+</div>
+
+<!-- CUSTOMIZE COLORS -->
+<div id="customize" class="menu hidden">
+  <h2>Vehicle Colors</h2>
+  <label>Cube <input type="color" id="cubeColor" value="#3a6cf4"></label>
+  <label>Ship <input type="color" id="shipColor" value="#8e44ad"></label>
+  <label>UFO <input type="color" id="ufoColor" value="#2ecc71"></label>
+  <label>Ball <input type="color" id="ballColor" value="#f1c40f"></label>
+  <label>Spider <input type="color" id="spiderColor" value="#e74c3c"></label>
+  <button id="backFromCustom" class="small">Done</button>
+</div>
+
+<canvas id="game" width="900" height="500"></canvas>
 
 <script>
-document.getElementById("btn").onclick = () => {
-  alert("Buttons work on GitHub Pages");
-};
+document.addEventListener("DOMContentLoaded", () => {
+  // MENU ELEMENTS
+  const home = document.getElementById("home");
+  const levels = document.getElementById("levels");
+  const customize = document.getElementById("customize");
+  const playBtn = document.getElementById("playBtn");
+  const customBtn = document.getElementById("customBtn");
+  const backFromLevels = document.getElementById("backFromLevels");
+  const backFromCustom = document.getElementById("backFromCustom");
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  let state = "menu";  // menu / play
+  let level = 1;
+  let frame = 0;
+  let gravity = 0.8;
+
+  // VEHICLE COLORS
+  const colors = {
+    cube: "#3a6cf4",
+    ship: "#8e44ad",
+    ufo: "#2ecc71",
+    ball: "#f1c40f",
+    spider: "#e74c3c"
+  };
+
+  // PLAYER DATA
+  const player = { x: 120, y: 360, vy: 0, mode: "cube", grounded: false };
+
+  const keys = {};
+  addEventListener("keydown", e => keys[e.code] = true);
+  addEventListener("keyup", e => keys[e.code] = false);
+
+  // MENU FUNCTIONS
+  function hideAll() { home.classList.add("hidden"); levels.classList.add("hidden"); customize.classList.add("hidden"); }
+
+  playBtn.addEventListener("click", () => { hideAll(); levels.classList.remove("hidden"); });
+  customBtn.addEventListener("click", () => { hideAll(); customize.classList.remove("hidden"); });
+  backFromLevels.addEventListener("click", () => { hideAll(); home.classList.remove("hidden"); });
+  backFromCustom.addEventListener("click", () => { hideAll(); home.classList.remove("hidden"); });
+
+  document.querySelectorAll(".level-btn").forEach(btn => {
+    btn.addEventListener("click", () => { startLevel(parseInt(btn.dataset.level)); });
+  });
+
+  function startLevel(lvl) {
+    level = lvl;
+    frame = 0;
+    player.y = 360;
+    player.vy = 0;
+    player.mode = "cube";
+    gravity = 0.8;
+    state = "play";
+    hideAll();
+    requestAnimationFrame(loop);
+  }
+
+  function allowedModes() {
+    return [
+      ["cube"],
+      ["cube","ship"],
+      ["cube","ship","ufo"],
+      ["cube","ship","ufo","ball"],
+      ["cube","ship","ufo","ball","spider"]
+    ][level - 1];
+  }
+
+  function update() {
+    frame++;
+    if (keys["Space"]) {
+      if (player.mode==="cube" && player.grounded) player.vy=-14;
+      if (player.mode==="ship") player.vy-=0.8;
+      if (player.mode==="ufo" && player.grounded) player.vy=-12;
+      if (player.mode==="spider" && player.grounded) player.vy=-16;
+    }
+    player.vy += gravity;
+    player.y += player.vy;
+    player.grounded = player.y >= 360;
+    if (player.grounded) player.y=360, player.vy=0;
+
+    if (frame % 600 === 0) {
+      const modes = allowedModes();
+      player.mode = modes[Math.floor(Math.random() * modes.length)];
+    }
+  }
+
+  function drawPlayer() {
+    ctx.fillStyle = colors[player.mode];
+    const x=player.x, y=player.y;
+
+    if (player.mode==="cube") ctx.fillRect(x,y,40,40);
+    if (player.mode==="ship") {
+      ctx.beginPath();
+      ctx.moveTo(x,y+40); ctx.lineTo(x+40,y+20); ctx.lineTo(x,y); ctx.fill();
+    }
+    if (player.mode==="ufo" || player.mode==="ball") {
+      ctx.beginPath(); ctx.arc(x+20,y+20,20,0,Math.PI*2); ctx.fill();
+    }
+    if (player.mode==="spider") ctx.fillRect(x,y,40,40);
+  }
+
+  function draw() {
+    ctx.fillStyle="#1a1a2e"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#333"; ctx.fillRect(0,400,canvas.width,100);
+    drawPlayer();
+  }
+
+  function loop() { if(state!=="play") return; update(); draw(); requestAnimationFrame(loop); }
+
+  // COLOR PICKERS
+  ["cube","ship","ufo","ball","spider"].forEach(type => {
+    document.getElementById(type+"Color").addEventListener("input", e => { colors[type] = e.target.value; });
+  });
+
+});
 </script>
 
 </body>
 </html>
-
